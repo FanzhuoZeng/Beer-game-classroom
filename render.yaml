@@ -2,7 +2,7 @@ services:
   - type: web
     name: beer-game-classroom
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
