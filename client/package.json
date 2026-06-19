@@ -1,0 +1,21 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "recharts": "^2.12.7",
+    "shared": "1.0.0",
+    "socket.io-client": "^4.7.5",
+    "vite": "^8.0.16",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.74",
+    "@types/react-dom": "^18.2.24",
+    "typescript": "^5.4.5"
+  }
+}

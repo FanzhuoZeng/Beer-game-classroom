@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: beer-game-classroom
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: TEACHER_PASSWORD
+        sync: false
