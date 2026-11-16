@@ -58,6 +58,14 @@ export interface SettlementStep {
   quantity: number;
 }
 
+export function settlementTiming(step: SettlementStep): { durationMs: number; transferAtMs: number } {
+  const travelling = step.quantity > 0 && (step.kind === "ship" || step.kind.startsWith("receive-"));
+  const durationMs = travelling ? 4800 : 2600;
+  // Match the truck's pickup (18%) and arrival (76%) stops in the route animation.
+  const transferAtMs = travelling ? durationMs * (step.kind === "ship" ? 0.18 : 0.76) : 0;
+  return { durationMs, transferAtMs };
+}
+
 export function settlementSteps(record: RoundRecord): SettlementStep[] {
   let stock = record.openingInventory;
   const steps: SettlementStep[] = [{ kind: "opening", before: stock, after: stock, quantity: 0 }];

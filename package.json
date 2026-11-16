@@ -1,22 +1,21 @@
 {
-  "name": "client",
-  "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc && vite build",
-    "test": "node --test test/*.test.cjs"
+    "install:all": "npm install --workspaces",
+    "dev": "concurrently \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
+    "start": "node server/dist/index.js",
+    "test": "npm run build --workspace shared && npm run build --workspace server && npm run test --workspace shared && npm run test --workspace server && npm run test --workspace client"
   },
-  "dependencies": {
-    "recharts": "^2.12.7",
-    "shared": "1.0.0",
-    "socket.io-client": "^4.7.5",
-    "vite": "^8.0.16",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
   "devDependencies": {
-    "@types/react": "^18.2.74",
-    "@types/react-dom": "^18.2.24",
-    "typescript": "^5.4.5"
+    "concurrently": "^8.2.2"
   }
 }

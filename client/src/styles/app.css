@@ -571,9 +571,11 @@ input:focus, select:focus {
   grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px) auto;
   align-items: center;
   gap: 14px;
-  border-color: #1f6feb;
-  background: linear-gradient(110deg, rgba(31, 111, 235, 0.13), rgba(16, 25, 36, 0.96) 55%);
+  border-color: #d34b65;
+  background: linear-gradient(110deg, rgba(244, 63, 94, 0.14), rgba(16, 25, 36, 0.96) 65%);
 }
+
+.decision-copy .eyebrow { color: #ff8e9e; }
 
 .decision-copy label {
   display: block;
@@ -597,9 +599,11 @@ input:focus, select:focus {
 .decision button {
   min-height: 45px;
   margin-right: 0;
-  background: #1f6feb;
-  border-color: #58a6ff;
+  background: #c8324e;
+  border-color: #fb7185;
 }
+
+.decision button:hover:not(:disabled) { background: #df3b5a; border-color: #ff91a2; }
 
 .decision input:disabled {
   opacity: 0.55;
@@ -770,6 +774,7 @@ input:focus, select:focus {
 }
 
 .preset-description { margin: 0 0 14px; }
+.dashboard-heading + .supply-chain { margin-top: 20px; }
 .metrics small { display: block; color: #8fa2b5; font-size: 11px; margin-top: 8px; }
 .settlement-panel { border-color: #305571; overflow: hidden; }
 .settlement-panel-heading, .settlement-modal-heading, .settlement-modal-footer {
@@ -778,7 +783,7 @@ input:focus, select:focus {
 .settlement-panel h3 { margin: 5px 0; }
 .settlement-panel p { margin: 8px 0; font-size: 13px; }
 .settlement-panel-heading button { margin-right: 0; }
-.settlement-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 18px 0; }
+.settlement-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 18px 0 0; }
 .settlement-summary > div { background: #0a141f; border: 1px solid #263545; padding: 14px; border-radius: 8px; }
 .settlement-summary span { color: #9aabba; display: block; font-size: 12px; }
 .settlement-summary b { display: block; font-size: 24px; margin-top: 8px; }
@@ -799,7 +804,7 @@ input:focus, select:focus {
   overflow-y: auto; overscroll-behavior: contain;
 }
 .settlement-focus {
-  width: min(860px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 28px;
+  width: min(960px, 100%); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 28px;
   border: 1px solid #3b688d; border-radius: 18px; background: radial-gradient(ellipse at 50% 35%, #18364b, #0b1825 65%);
   box-shadow: 0 0 90px rgba(88, 166, 255, .15), 0 30px 100px #0009;
 }
@@ -807,21 +812,43 @@ input:focus, select:focus {
 .settlement-caption { text-align: center; min-height: 105px; padding: 8px 0; }
 .settlement-caption h2 { font-size: 28px; margin: 10px 0; }
 .settlement-caption p { margin: 0; line-height: 1.5; font-size: 14px; }
-.settlement-scene { height: 350px; position: relative; overflow: hidden; }
-.settlement-scene .warehouse { position: absolute; left: 50%; top: 0; transform: translateX(-50%); }
-.settlement-partner { position: absolute; top: 30px; max-width: 24%; text-align: center; }
-.settlement-partner.upstream { left: 0; }
-.settlement-partner.downstream { right: 0; }
+.settlement-route {
+  display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 45px;
+  margin-bottom: 12px; padding: 8px 14px; border: 1px solid #2b455b; background: #0a1825; border-radius: 8px;
+  font-size: 13px; font-weight: 700;
+}
+.settlement-route b { border-left: 1px solid #354558; padding-left: 14px; white-space: nowrap; }
+.route-arrow { font-size: 24px; line-height: 1; }
+.settlement-scene {
+  --upstream-x: 12%; --warehouse-x: 50%; --downstream-x: 88%;
+  height: 380px; position: relative; overflow: hidden;
+}
+.settlement-scene .warehouse { position: absolute; width: 220px; left: var(--warehouse-x); top: 24px; transform: translateX(-50%); }
+.settlement-partner { position: absolute; top: 28px; width: 160px; text-align: center; transform: translateX(-50%); color: #8dc4ff; }
+.settlement-partner.upstream { left: var(--upstream-x); }
+.settlement-partner.downstream { left: var(--downstream-x); }
 .settlement-partner span { display: block; color: #8fa2b5; font-size: 10px; letter-spacing: .1em; }
-.settlement-partner b { display: block; margin-top: 8px; color: #c4daed; font-size: 14px; }
-.settlement-road { position: absolute; left: 0; right: 0; bottom: 6px; height: 52px; background: #142230; border-top: 1px solid #354558; border-bottom: 1px solid #354558; }
-.settlement-road::after { content: ""; position: absolute; left: 0; right: 0; top: 25px; border-top: 2px dashed #597082; }
-.settlement-truck { position: absolute; width: 120px; bottom: 15px; z-index: 3; }
+.partner-building { display: block; width: 120px; height: 100px; margin: 18px auto 8px; }
+.settlement-partner b { display: block; color: #c4daed; font-size: 14px; }
+.settlement-road {
+  position: absolute; left: 0; right: 0; bottom: 26px; height: 54px; background: #142230;
+  border-top: 1px solid #354558; border-bottom: 1px solid #354558;
+}
+.settlement-road::after { content: ""; position: absolute; left: var(--upstream-x); right: calc(100% - var(--downstream-x)); top: 26px; border-top: 2px dashed #597082; }
+.road-leg { position: absolute; top: 0; height: 100%; opacity: 0; transition: opacity 200ms; }
+.upstream-leg { left: var(--upstream-x); width: calc(var(--warehouse-x) - var(--upstream-x)); background: rgba(67, 217, 173, .14); border-top: 2px solid #43d9ad; }
+.downstream-leg { left: var(--warehouse-x); width: calc(var(--downstream-x) - var(--warehouse-x)); background: rgba(88, 166, 255, .14); border-top: 2px solid #58a6ff; }
+.receiving .upstream-leg, .shipping .downstream-leg { opacity: 1; }
+.dock { position: absolute; top: -13px; width: 10px; height: 10px; border-radius: 50%; background: #8fa2b5; transform: translateX(-50%); }
+.upstream-dock { left: var(--upstream-x); }
+.warehouse-dock { left: var(--warehouse-x); background: #43d9ad; }
+.downstream-dock { left: var(--downstream-x); }
+.settlement-truck { position: absolute; width: 110px; bottom: 36px; z-index: 3; transform: translateX(-50%); animation: truck-route var(--travel-duration) linear both; }
 .settlement-truck svg { display: block; width: 100%; }
 .settlement-truck b { display: block; text-align: center; font-size: 13px; color: #e6edf3; background: #0b1825; border: 1px solid #3b688d; border-radius: 5px; padding: 5px; }
-.settlement-truck.inbound { left: 0; animation: truck-arrive 1.5s ease-in-out both; }
-.settlement-truck.outbound { left: calc(50% - 60px); animation: truck-depart 1.5s ease-in-out both; }
-.stock-change { position: absolute; top: 151px; left: calc(50% + 78px); font-size: 26px; z-index: 4; animation: stock-pop .6s ease-out both; }
+.settlement-truck.inbound { --truck-from: var(--upstream-x); --truck-to: var(--warehouse-x); }
+.settlement-truck.outbound { --truck-from: var(--warehouse-x); --truck-to: var(--downstream-x); }
+.stock-change { position: absolute; top: 178px; left: calc(50% + 78px); font-size: 26px; z-index: 4; animation: stock-pop .6s ease-out both; }
 .settlement-progress { display: flex; gap: 7px; margin: 16px 0; }
 .settlement-progress i { height: 4px; flex: 1; background: #263545; border-radius: 3px; }
 .settlement-progress i.filled { background: #43d9ad; }
@@ -831,28 +858,34 @@ input:focus, select:focus {
 .settlement-modal-footer { margin-top: 18px; }
 .settlement-modal-footer small { color: #8fa2b5; font-size: 12px; }
 .settlement-modal-footer button { flex-shrink: 0; margin: 0; }
-@keyframes truck-arrive { 0% { left: -130px; opacity: 0; } 15% { opacity: 1; } 70%, 100% { left: calc(50% - 60px); opacity: 1; } }
-@keyframes truck-depart { 0%, 15% { left: calc(50% - 60px); opacity: 1; } 85% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+@keyframes truck-route { 0%, 18% { left: var(--truck-from); } 76%, 100% { left: var(--truck-to); } }
 @keyframes stock-pop { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) {
   .settlement-truck, .stock-change { animation: none; }
-  .settlement-truck.inbound, .settlement-truck.outbound { left: calc(50% - 60px); }
+  .settlement-truck.inbound, .settlement-truck.outbound { left: var(--truck-to); }
 }
 @media (max-width: 600px) {
   .settlement-summary { grid-template-columns: repeat(2, 1fr); }
+  .settlement-summary > div:last-child { grid-column: 1 / -1; }
   .settlement-backdrop { padding: 10px; }
   .settlement-focus { padding: 16px; max-height: calc(100dvh - 20px); }
-  .settlement-scene { height: 330px; }
-  .settlement-scene .warehouse { width: 170px; top: 35px; }
-  .settlement-scene .warehouse-role { font-size: 14px; }
+  .settlement-scene { --upstream-x: 15%; --downstream-x: 85%; height: 330px; }
+  .settlement-scene .warehouse { width: clamp(125px, 37vw, 145px); top: 45px; }
+  .settlement-scene .warehouse-role { font-size: 13px; }
   .settlement-scene .warehouse-stock { font-size: 36px; }
-  .settlement-partner { top: 0; max-width: 44%; }
-  .settlement-partner b { font-size: 12px; margin-top: 4px; }
+  .settlement-partner { top: 28px; width: 72px; }
+  .partner-building { width: 64px; height: 60px; margin: 26px auto 6px; }
+  .settlement-partner b { font-size: 11px; }
+  .settlement-partner span { font-size: 8px; letter-spacing: .04em; }
+  .settlement-truck { width: 76px; }
+  .settlement-truck b { font-size: 11px; padding: 4px 1px; }
+  .settlement-route { gap: 7px; padding: 8px 6px; font-size: 11px; }
+  .settlement-route b { padding-left: 7px; }
   .settlement-caption h2 { font-size: 24px; }
   .settlement-ledger { gap: 8px; padding: 12px 8px; }
   .settlement-ledger span { font-size: 10px; }
   .settlement-ledger b { font-size: 17px; }
-  .stock-change { top: 148px; left: calc(50% + 54px); font-size: 22px; }
+  .stock-change { top: 152px; left: calc(50% + 48px); font-size: 22px; }
   .settlement-modal-footer { flex-wrap: wrap; }
   .settlement-idle { flex-direction: column; gap: 8px; }
   .metrics { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }

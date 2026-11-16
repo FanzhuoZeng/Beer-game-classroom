@@ -645,6 +645,8 @@ function StudentApp() {
           </div>
         </div>
 
+        <SupplyChainMap currentRole={view.role} />
+
         <div className="metrics">
           <div className="metric inventory-metric"><b>Inventory</b><span>{view.inventory}</span></div>
           <div className={`metric ${view.previousRoundBacklog > 0 ? "backlog-metric" : "inventory-metric"}`}>
@@ -660,8 +662,6 @@ function StudentApp() {
             {view.role === "Factory" && <small>Includes completed production</small>}
           </div>
         </div>
-
-        <SupplyChainMap currentRole={view.role} />
 
         <SettlementPanel role={view.role} inventory={view.inventory} record={view.records[view.records.length - 1]}
           onReplay={() => dispatchPlayback({ type: "replay" })} />

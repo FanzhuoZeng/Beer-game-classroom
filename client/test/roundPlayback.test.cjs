@@ -9,7 +9,7 @@ const compiled = new Module(filename, module);
 compiled._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
 }).outputText, filename);
-const { playbackReducer, initialPlayback, settlementSteps } = compiled.exports;
+const { playbackReducer, initialPlayback, settlementSteps, settlementTiming } = compiled.exports;
 const { classroomPresets, createInitialRoom, prepareRound, processRound, roles, submitDecision } = require("../../shared/dist/index.js");
 const { playerView } = require("../../server/dist/gameState.js");
 
@@ -127,4 +127,20 @@ test("factory and positive-lead arrivals appear before shipping with no negative
   const steps = settlementSteps(record);
   assert.deepEqual(steps.map(s => s.kind), ["opening", "receive-before", "ship", "receive-after", "closing"]);
   for (const step of steps) { assert.ok(step.before >= 0); assert.ok(step.after >= 0); }
+});
+
+test("slower transport timing updates stock at pickup and arrival, not halfway along a route", () => {
+  const steps = settlementSteps(views()[1].records[0]);
+  const timings = steps.map(settlementTiming);
+  assert.equal(timings.reduce((sum, timing) => sum + timing.durationMs, 0), 14800);
+  assert.deepEqual(timings[1], { durationMs: 4800, transferAtMs: 864 });
+  assert.deepEqual(timings[2], { durationMs: 4800, transferAtMs: 3648 });
+  for (const timing of timings) assert.ok(timing.transferAtMs < timing.durationMs);
+});
+
+test("zero-quantity steps use a short hold without a phantom delivery", () => {
+  assert.deepEqual(settlementTiming({ kind: "ship", before: 10, after: 10, quantity: 0 }),
+    { durationMs: 2600, transferAtMs: 0 });
+  assert.deepEqual(settlementTiming({ kind: "receive-after", before: 10, after: 10, quantity: 0 }),
+    { durationMs: 2600, transferAtMs: 0 });
 });

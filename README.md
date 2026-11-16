@@ -95,8 +95,17 @@ players submit; the retailer sees current-round consumer demand. Zero-lead
 goods received show the latest completed settlement, not goods still in transit.
 Factory receipts include completed production.
 
+The student page shows supply chain position first, then current metrics,
+then **Last Round Action** with the actual order or production quantity and
+settlement results. The current **Round Decision** area uses red accents.
+
 After each round, a focused warehouse animation shows opening stock,
-outbound shipments, inbound goods and ending stock. The rest of the page is
+outbound shipments, inbound goods and ending stock. Clearly labeled upstream,
+own-warehouse and downstream buildings mark the truck's pickup and delivery
+stops. Each positive-quantity trip lasts 4.8 seconds, with time to load and
+unload; a normal settlement lasts about 15 seconds. Inventory decreases at
+pickup and increases at arrival. Zero-quantity steps do not animate a truck.
+The rest of the page is
 dimmed and locked, and its values remain unchanged until playback finishes.
 **Replay** repeats the latest settlement without submitting or advancing a
 round. **Skip Animation** (or Escape) ends playback immediately. Rejoining a
