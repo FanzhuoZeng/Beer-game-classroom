@@ -5,6 +5,7 @@ import {
   defaultParams,
   exportRoomCsv,
   GameParams,
+  PlayerView,
   prepareRound,
   processRound,
   Role,
@@ -137,9 +138,13 @@ export function publicRoom(room: RoomState) {
   };
 }
 
-export function playerView(room: RoomState, role: Role) {
+export function playerView(room: RoomState, role: Role): PlayerView {
   const state = room.roles[role];
   const costs = room.params.roleParams[role];
+  const records = room.records.filter(r => r.role === role);
+  const last = records[records.length - 1];
+  const liveOrders = room.status === "running" && (role === "Retailer" || room.params.orderLeadTime > 0);
+  const liveShipments = room.status === "running" && room.params.shipmentLeadTime > 0;
   return {
     code: room.code,
     status: room.status,
@@ -153,12 +158,18 @@ export function playerView(room: RoomState, role: Role) {
     currentIncomingOrder: state.currentIncomingOrder,
     currentIncomingShipment: state.currentIncomingShipment,
     inTransitShipment: state.shipmentPipeline.reduce((sum, quantity) => sum + quantity, 0),
+    previousRoundBacklog: last?.backlog ?? 0,
+    previousRoundBacklogRound: last?.round ?? 0,
+    receivedOrder: liveOrders ? state.currentIncomingOrder : last?.demandReceived ?? 0,
+    receivedOrderRound: liveOrders ? room.currentRound : last?.round ?? null,
+    receivedShipment: liveShipments ? state.currentIncomingShipment : last?.shipmentReceived ?? 0,
+    receivedShipmentRound: liveShipments ? room.currentRound : last?.round ?? null,
     costs,
     maxAffordableQuantity: costs.purchaseCost === 0
       ? null
       : Math.floor(Math.max(0, state.cash) / costs.purchaseCost),
     submittedThisRound: state.submittedThisRound,
-    records: room.records.filter(r => r.role === role)
+    records
   };
 }
 

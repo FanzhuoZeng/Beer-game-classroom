@@ -87,3 +87,71 @@ test("rooms can be deleted regardless of status", () => {
   assert.equal(deleteRoom(completedRoom.code).status, "completed");
   assert.throws(() => deleteRoom(completedRoom.code), /Room not found/);
 });
+
+const { classroomPresets, roles } = require("shared");
+
+function presetRoom(shipmentLeadTime = 0) {
+  const params = structuredClone(classroomPresets[0].params);
+  params.shipmentLeadTime = shipmentLeadTime;
+  const room = createRoom(params);
+  for (const role of roles) joinRoom(room.code, role, role);
+  return startRoom(room.code);
+}
+
+test("first-round received goods and previous backlog are zero", () => {
+  const room = presetRoom();
+  for (const role of roles) {
+    const view = playerView(room, role);
+    assert.equal(view.receivedShipment, 0);
+    assert.equal(view.receivedShipmentRound, null);
+    assert.equal(view.previousRoundBacklog, 0);
+    assert.equal(view.previousRoundBacklogRound, 0);
+    assert.equal(view.receivedOrder, role === "Retailer" ? 60 : 0);
+  }
+});
+
+test("zero-lead received orders and goods retain actual quantities with explicit round numbers", () => {
+  let room = presetRoom();
+  for (const role of roles) room = makeDecision(room.code, role, 100);
+  for (const role of roles) {
+    const view = playerView(room, role);
+    assert.equal(view.receivedShipment, 100);
+    assert.equal(view.receivedShipmentRound, 1);
+    assert.equal(view.previousRoundBacklogRound, 1);
+    assert.equal(view.receivedOrder, role === "Retailer" ? 220 : 100);
+    assert.equal(view.receivedOrderRound, role === "Retailer" ? 2 : 1);
+    assert.equal(view.records.every(r => r.role === role), true);
+  }
+  for (const role of roles) room = makeDecision(room.code, role, 0);
+  const view = playerView(room, "Wholesaler");
+  assert.equal(view.receivedShipment, 0);
+  assert.equal(view.receivedOrder, 0);
+  assert.equal(view.receivedOrderRound, 2);
+  assert.equal(playerView(room, "Retailer").previousRoundBacklog, 0);
+});
+
+test("completed games preserve final-round received amounts and backlog", () => {
+  let room = presetRoom();
+  for (let round = 0; round < 3; round++) {
+    for (const role of roles) room = makeDecision(room.code, role, 50);
+  }
+  for (const role of roles) {
+    const view = playerView(room, role);
+    const last = view.records[2];
+    assert.equal(view.status, "completed");
+    assert.equal(view.receivedOrder, last.demandReceived);
+    assert.equal(view.receivedShipment, last.shipmentReceived);
+    assert.equal(view.receivedShipmentRound, 3);
+    assert.equal(view.previousRoundBacklog, last.backlog);
+  }
+});
+
+test("positive-lead receipt metric shows arrivals, not outstanding shipments", () => {
+  let room = presetRoom(2);
+  for (const role of roles) room = makeDecision(room.code, role, 100);
+  assert.equal(playerView(room, "Retailer").receivedShipment, 0);
+  assert.equal(playerView(room, "Retailer").inTransitShipment, 100);
+  for (const role of roles) room = makeDecision(room.code, role, 0);
+  assert.equal(playerView(room, "Retailer").receivedShipment, 100);
+  assert.equal(playerView(room, "Retailer").receivedShipmentRound, 3);
+});

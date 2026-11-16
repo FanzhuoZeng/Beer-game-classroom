@@ -76,8 +76,37 @@ If a student closes the page, the teacher dashboard marks that role as
 role, and player name; their role state and history are preserved.
 
 Student order quantities are limited by available cash. With zero order lead
-time, orders are processed by the upstream role in the same round; fulfilled
-quantities appear as **Shipped / In Transit** for the downstream role.
+time, orders are processed by the upstream role in the same round.
+
+## Classroom Presets And Settlement Playback
+
+The teacher's **Parameter set** dropdown includes **Test (3 rounds)**,
+**Short (10)**, **Medium (15)**, **Standard (20)** and **Long (30)**. These are
+the calibrated v4 demand sequences, with both lead times set to zero. All
+roles have a unit margin of 6, holding cost of 1 and backlog cost of 3.
+Downstream purchase prices match upstream selling prices. Built-in presets
+can be copied into named custom sets but cannot be overwritten or deleted.
+
+Student metric cards show **Previous Round-End Backlog**, **Orders Received**
+and **Goods Received**, each with the relevant round number. First-round
+goods received are zero. With zero order lead time, upstream players see the
+last settled order, since the new downstream order is not known until all
+players submit; the retailer sees current-round consumer demand. Zero-lead
+goods received show the latest completed settlement, not goods still in transit.
+Factory receipts include completed production.
+
+After each round, a focused warehouse animation shows opening stock,
+outbound shipments, inbound goods and ending stock. The rest of the page is
+dimmed and locked, and its values remain unchanged until playback finishes.
+**Replay** repeats the latest settlement without submitting or advancing a
+round. **Skip Animation** (or Escape) ends playback immediately. Rejoining a
+room restores the current dashboard without playing its entire history.
+
+Settlement follows the engine's actual timing: zero-lead shipments arrive
+after dispatch and cannot be re-shipped in that same round. Factory
+production with zero lead time, or deliveries already due at the start of a
+positive-lead round, appear before dispatch. The animation explicitly shows
+these earlier receipts so warehouse stock never becomes negative.
 
 The teacher can delete waiting, running, or completed rooms. Switching to the
 student view or refreshing the page locks the teacher dashboard again.

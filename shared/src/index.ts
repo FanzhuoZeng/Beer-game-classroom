@@ -39,6 +39,11 @@ export interface RoundRecord {
   roomCode: string;
   round: number;
   role: Role;
+  openingInventory: number;
+  openingBacklog: number;
+  openingCash: number;
+  receiptsBeforeShipping: number;
+  receiptsAfterShipping: number;
   demandReceived: number;
   orderSubmitted: number;
   shipmentReceived: number;
@@ -51,6 +56,31 @@ export interface RoundRecord {
   holdingCost: number;
   backlogCost: number;
   profitThisRound: number;
+}
+
+export interface PlayerView {
+  code: string;
+  status: RoomStatus;
+  currentRound: number;
+  totalRounds: number;
+  role: Role;
+  playerName?: string;
+  inventory: number;
+  backlog: number;
+  cash: number;
+  currentIncomingOrder: number;
+  currentIncomingShipment: number;
+  inTransitShipment: number;
+  previousRoundBacklog: number;
+  previousRoundBacklogRound: number;
+  receivedOrder: number;
+  receivedOrderRound: number | null;
+  receivedShipment: number;
+  receivedShipmentRound: number | null;
+  costs: RoleParams;
+  maxAffordableQuantity: number | null;
+  submittedThisRound: boolean;
+  records: RoundRecord[];
 }
 
 export interface RoomState {
@@ -279,6 +309,16 @@ export function processRound(room: RoomState): RoomState {
 
   const next = structuredClone(room) as RoomState;
   // 1. Place this round's decisions upstream.
+  const opening = Object.fromEntries(roles.map(role => {
+    const state = next.roles[role];
+    return [role, {
+      inventory: state.inventory - state.currentIncomingShipment,
+      backlog: state.backlog,
+      cash: state.cash,
+      before: state.currentIncomingShipment,
+      after: 0
+    }];
+  })) as Record<Role, { inventory: number; backlog: number; cash: number; before: number; after: number }>;
   for (const role of roles) {
     const orderQty = next.roles[role].currentDecision ?? 0;
     const up = upstream(role);
@@ -294,6 +334,7 @@ export function processRound(room: RoomState): RoomState {
       const factory = next.roles.Factory;
       if (factory.shipmentPipeline.length === 0) {
         factory.inventory += orderQty;
+        opening.Factory.before += orderQty;
       } else {
         factory.shipmentPipeline[factory.shipmentPipeline.length - 1] += orderQty;
       }
@@ -302,9 +343,6 @@ export function processRound(room: RoomState): RoomState {
 
   const demandReceived = Object.fromEntries(
     roles.map(role => [role, next.roles[role].currentIncomingOrder])
-  ) as Record<Role, number>;
-  const shipmentReceived = Object.fromEntries(
-    roles.map(role => [role, next.roles[role].currentIncomingShipment])
   ) as Record<Role, number>;
 
   // 2. Fulfil all orders available this round, including zero-lead-time orders.
@@ -339,6 +377,7 @@ export function processRound(room: RoomState): RoomState {
     const shipped = shippedByRole[role];
     if (target.shipmentPipeline.length === 0) {
       target.inventory += shipped;
+      opening[down].after += shipped;
     } else {
       target.shipmentPipeline[target.shipmentPipeline.length - 1] += shipped;
     }
@@ -363,9 +402,14 @@ export function processRound(room: RoomState): RoomState {
       roomCode: next.code,
       round: next.currentRound,
       role,
+      openingInventory: opening[role].inventory,
+      openingBacklog: opening[role].backlog,
+      openingCash: opening[role].cash,
+      receiptsBeforeShipping: opening[role].before,
+      receiptsAfterShipping: opening[role].after,
       demandReceived: demandReceived[role],
       orderSubmitted: orderQty,
-      shipmentReceived: shipmentReceived[role],
+      shipmentReceived: opening[role].before + opening[role].after,
       shipped,
       inventory: state.inventory,
       backlog: state.backlog,
@@ -443,3 +487,5 @@ export function exportRoomCsv(room: RoomState): string {
 
   return [header, ...rows].map(row => row.join(",")).join("\n");
 }
+
+export { classroomPresets } from "./presets";

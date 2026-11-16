@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { io } from "socket.io-client";
-import { defaultParams, roles, validateGameParams } from "shared";
-import type { GameParams, Role, RoleParams, RoundRecord, RoomStatus } from "shared";
+import { classroomPresets, defaultParams, roles, validateGameParams } from "shared";
+import type { GameParams, PlayerView, Role, RoleParams, RoundRecord, RoomStatus } from "shared";
+import { initialPlayback, playbackReducer } from "./roundPlayback";
+import { SettlementAnimation, SettlementPanel } from "./SettlementAnimation";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
@@ -35,25 +37,6 @@ type PublicRoom = {
   roles: PublicRole[];
 };
 
-type PlayerView = {
-  code: string;
-  status: RoomStatus;
-  currentRound: number;
-  totalRounds: number;
-  role: Role;
-  playerName?: string;
-  inventory: number;
-  backlog: number;
-  cash: number;
-  currentIncomingOrder: number;
-  currentIncomingShipment: number;
-  inTransitShipment: number;
-  costs: RoleParams;
-  maxAffordableQuantity: number | null;
-  submittedThisRound: boolean;
-  records: RoundRecord[];
-};
-
 type ParameterSet = {
   id: string;
   name: string;
@@ -66,24 +49,26 @@ const DEFAULT_SET: ParameterSet = {
   name: "Default classroom game",
   params: structuredClone(defaultParams)
 };
+const BUILT_IN_SETS: ParameterSet[] = [...classroomPresets, DEFAULT_SET];
+const isBuiltIn = (id: string) => BUILT_IN_SETS.some(set => set.id === id);
 
 function loadParameterSets(): ParameterSet[] {
   try {
     const saved = JSON.parse(localStorage.getItem(PARAMETER_SETS_KEY) || "[]");
-    if (!Array.isArray(saved)) return [DEFAULT_SET];
+    if (!Array.isArray(saved)) return [...BUILT_IN_SETS];
     const custom = saved
-      .filter(item => item && typeof item.id === "string" && typeof item.name === "string")
+      .filter(item => item && typeof item.id === "string" && typeof item.name === "string" && !isBuiltIn(item.id))
       .map(item => ({ ...item, params: validateGameParams(item.params) }));
-    return [DEFAULT_SET, ...custom];
+    return [...BUILT_IN_SETS, ...custom];
   } catch {
-    return [DEFAULT_SET];
+    return [...BUILT_IN_SETS];
   }
 }
 
 function saveParameterSets(sets: ParameterSet[]) {
   localStorage.setItem(
     PARAMETER_SETS_KEY,
-    JSON.stringify(sets.filter(set => set.id !== DEFAULT_SET.id))
+    JSON.stringify(sets.filter(set => !isBuiltIn(set.id)))
   );
 }
 
@@ -194,7 +179,7 @@ function TeacherApp({ password, onLogout }: { password: string; onLogout: () => 
   const [rooms, setRooms] = useState<PublicRoom[]>([]);
   const [reviewCode, setReviewCode] = useState<string | null>(null);
   const [parameterSets, setParameterSets] = useState<ParameterSet[]>(loadParameterSets);
-  const [selectedSetId, setSelectedSetId] = useState(DEFAULT_SET.id);
+  const [selectedSetId, setSelectedSetId] = useState(classroomPresets[0].id);
   const [managingParameters, setManagingParameters] = useState(false);
 
   useEffect(() => {
@@ -216,18 +201,18 @@ function TeacherApp({ password, onLogout }: { password: string; onLogout: () => 
     setParameterSets(next);
     saveParameterSets(next);
     if (!next.some(set => set.id === selectedSetId)) {
-      setSelectedSetId(DEFAULT_SET.id);
+      setSelectedSetId(classroomPresets[0].id);
     }
   }
 
   async function createRoom() {
     const selected = parameterSets.find(set => set.id === selectedSetId) || DEFAULT_SET;
-    const res = await fetch(`${API}/api/rooms`, {
-      method: "POST",
-      headers: teacherHeaders(password, true),
-      body: JSON.stringify({ params: selected.params })
-    });
     try {
+      const res = await fetch(`${API}/api/rooms`, {
+        method: "POST",
+        headers: teacherHeaders(password, true),
+        body: JSON.stringify({ params: selected.params })
+      });
       const room = await responseJson<PublicRoom>(res);
       setReviewCode(null);
       alert(`Room ${room.code} created with "${selected.name}".`);
@@ -299,7 +284,7 @@ function TeacherApp({ password, onLogout }: { password: string; onLogout: () => 
       <section className="card room-creator">
         <div>
           <h2>Create a room</h2>
-          <p>Select the saved parameter set to use for the new room.</p>
+          <p>Choose a ready-to-play classroom preset or one of your saved parameter sets.</p>
         </div>
         <div className="create-controls">
           <label htmlFor="parameter-set">Parameter set</label>
@@ -310,6 +295,12 @@ function TeacherApp({ password, onLogout }: { password: string; onLogout: () => 
           >
             {parameterSets.map(set => <option key={set.id} value={set.id}>{set.name}</option>)}
           </select>
+          <small className="muted preset-description">
+            {(() => {
+              const params = (parameterSets.find(set => set.id === selectedSetId) || DEFAULT_SET).params;
+              return `${params.totalRounds} rounds | Order lead time: ${params.orderLeadTime} | Shipment lead time: ${params.shipmentLeadTime}`;
+            })()}
+          </small>
           <button onClick={createRoom}>Create Room</button>
           <button className="secondary" onClick={() => setManagingParameters(true)}>Manage Parameter Sets</button>
         </div>
@@ -369,8 +360,8 @@ function ParameterSetManager({ sets, onChange, onBack }: {
   }
 
   function edit(set: ParameterSet) {
-    setEditingId(set.id === DEFAULT_SET.id ? null : set.id);
-    setName(set.id === DEFAULT_SET.id ? `${set.name} copy` : set.name);
+    setEditingId(isBuiltIn(set.id) ? null : set.id);
+    setName(isBuiltIn(set.id) ? `${set.name} copy` : set.name);
     setParams(structuredClone(set.params));
     setDemandText(set.params.marketDemand.join(", "));
     setMessage("");
@@ -423,7 +414,7 @@ function ParameterSetManager({ sets, onChange, onBack }: {
         <div>
           <button onClick={onBack}>Back to Rooms</button>
           <h2>Parameter Sets</h2>
-          <p>Saved sets remain in this teacher browser and can be selected when creating a room.</p>
+          <p>Built-in presets are always available. Custom sets are saved in this browser. Copy a preset to customize it.</p>
         </div>
         <button onClick={() => startNew()}>New Parameter Set</button>
       </div>
@@ -439,9 +430,9 @@ function ParameterSetManager({ sets, onChange, onBack }: {
               </div>
               <div>
                 <button className="small" onClick={() => edit(set)}>
-                  {set.id === DEFAULT_SET.id ? "Copy" : "Edit"}
+                  {isBuiltIn(set.id) ? "Copy" : "Edit"}
                 </button>
-                {set.id !== DEFAULT_SET.id && (
+                {!isBuiltIn(set.id) && (
                   <button className="small danger" onClick={() => remove(set.id)}>Delete</button>
                 )}
               </div>
@@ -572,22 +563,28 @@ function StudentApp() {
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [role, setRole] = useState<Role>("Retailer");
-  const [view, setView] = useState<PlayerView | null>(null);
+  const [playback, dispatchPlayback] = useReducer(playbackReducer, initialPlayback);
+  const view = playback.visible;
+  const playing = playback.active !== null;
+  const finishPlayback = useCallback(() => {
+    dispatchPlayback({ type: "finish", playbackId: playback.playbackId });
+  }, [playback.playbackId]);
   const [quantity, setQuantity] = useState(0);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    socket.on("player:update", setView);
+    const receive = (next: PlayerView) => dispatchPlayback({ type: "receive", view: next });
+    socket.on("player:update", receive);
     socket.on("room:update", () => {
       if (roomCode && role) socket.emit("player:refresh", { roomCode, role });
     });
     socket.on("error:message", setMessage);
     socket.on("room:deleted", () => {
-      setView(null);
+      dispatchPlayback({ type: "reset" });
       setMessage("This room was deleted by the teacher.");
     });
     return () => {
-      socket.off("player:update", setView);
+      socket.off("player:update", receive);
       socket.off("room:update");
       socket.off("error:message", setMessage);
       socket.off("room:deleted");
@@ -606,7 +603,7 @@ function StudentApp() {
   }
 
   function submit() {
-    if (!view) return;
+    if (!view || playing || view.status !== "running" || view.submittedThisRound) return;
     if (!Number.isFinite(quantity) || quantity < 0) {
       setMessage("Quantity must be a non-negative number.");
       return;
@@ -650,13 +647,24 @@ function StudentApp() {
 
         <div className="metrics">
           <div className="metric inventory-metric"><b>Inventory</b><span>{view.inventory}</span></div>
-          <div className="metric backlog-metric"><b>Backlog</b><span>{view.backlog}</span></div>
+          <div className={`metric ${view.previousRoundBacklog > 0 ? "backlog-metric" : "inventory-metric"}`}>
+            <b>Previous Round-End Backlog</b><span>{view.previousRoundBacklog}</span>
+            <small>{view.previousRoundBacklogRound ? `End of Round ${view.previousRoundBacklogRound}` : "Before Round 1"}</small>
+          </div>
           <div><b>Cash</b><span>{view.cash.toFixed(2)}</span></div>
-          <div><b>Incoming Order</b><span>{view.currentIncomingOrder}</span></div>
-          <div><b>Shipped / In Transit</b><span>{view.inTransitShipment}</span></div>
+          <div><b>Orders Received</b><span>{view.receivedOrder}</span>
+            <small>{view.receivedOrderRound === null ? "No orders received yet" : `Received in Round ${view.receivedOrderRound}`}</small>
+          </div>
+          <div><b>Goods Received</b><span>{view.receivedShipment}</span>
+            <small>{view.receivedShipmentRound === null ? "No goods received yet" : `Received in Round ${view.receivedShipmentRound}`}</small>
+            {view.role === "Factory" && <small>Includes completed production</small>}
+          </div>
         </div>
 
         <SupplyChainMap currentRole={view.role} />
+
+        <SettlementPanel role={view.role} inventory={view.inventory} record={view.records[view.records.length - 1]}
+          onReplay={() => dispatchPlayback({ type: "replay" })} />
 
         <section className="decision card">
           <div className="decision-copy">
@@ -680,12 +688,12 @@ function StudentApp() {
             max={view.maxAffordableQuantity ?? undefined}
             step="1"
             value={quantity}
-            disabled={view.status !== "running" || view.submittedThisRound}
+            disabled={playing || view.status !== "running" || view.submittedThisRound}
             onChange={e => setQuantity(Number(e.target.value))}
           />
           <button
             onClick={submit}
-            disabled={view.status !== "running" || view.submittedThisRound}
+            disabled={playing || view.status !== "running" || view.submittedThisRound}
           >
             {view.submittedThisRound ? "Decision Submitted" : "Submit Decision"}
           </button>
@@ -715,7 +723,7 @@ function StudentApp() {
           <div className="table-wrap"><table>
           <thead>
             <tr>
-              <th>Round</th><th>Received</th><th>Ordered</th><th>Shipment</th><th>Inventory</th><th>Backlog</th><th>Cash</th>
+              <th>Round</th><th>Orders Received</th><th>Ordered</th><th>Goods Received</th><th>Ending Inventory</th><th>Ending Backlog</th><th>Cash</th>
             </tr>
           </thead>
           <tbody>
@@ -729,6 +737,7 @@ function StudentApp() {
           </table></div>
         </section>
       </section>
+      {playback.active && <SettlementAnimation key={playback.playbackId} record={playback.active} onFinish={finishPlayback} />}
     </main>
   );
 }
@@ -760,14 +769,14 @@ function SupplyChainMap({ currentRole }: { currentRole: Role }) {
 function StudentTrendChart({ records }: { records: RoundRecord[] }) {
   const data = records.map(record => ({
     round: record.round,
-    "Incoming Orders": record.demandReceived,
+    "Orders Received": record.demandReceived,
     Inventory: record.inventory
   }));
 
   return (
     <section className="card wide">
       <span className="eyebrow">OPERATING TREND</span>
-      <h3>Incoming orders and inventory</h3>
+      <h3>Orders received and inventory</h3>
       {data.length === 0 ? (
         <p className="muted">The chart will appear after the first round is processed.</p>
       ) : (
@@ -778,14 +787,14 @@ function StudentTrendChart({ records }: { records: RoundRecord[] }) {
               <XAxis dataKey="round" stroke="#8b9bad" />
               <YAxis stroke="#8b9bad" />
               <Tooltip contentStyle={{ background: "#121a24", border: "1px solid #334155" }} />
-              <Line type="monotone" dataKey="Incoming Orders" stroke="#58a6ff" strokeWidth={3} dot={false} />
+              <Line type="monotone" dataKey="Orders Received" stroke="#58a6ff" strokeWidth={3} dot={false} />
               <Line type="monotone" dataKey="Inventory" stroke="#43d9ad" strokeWidth={3} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
       <div className="chart-key">
-        <span><i style={{ background: "#58a6ff" }} />Incoming Orders</span>
+        <span><i style={{ background: "#58a6ff" }} />Orders Received</span>
         <span><i style={{ background: "#43d9ad" }} />Inventory</span>
       </div>
     </section>
